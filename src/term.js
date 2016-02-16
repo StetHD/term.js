@@ -576,6 +576,11 @@ Terminal.bindKeys = function(document) {
     if (!Terminal.focus) return;
     var target = ev.target || ev.srcElement;
     if (!target) return;
+    if (ev.ctrlKey && ev.key === 'v') {
+      // If we got here with Ctrl+V, then we know it's us who enabled it
+      // to bubble to be handled by browser as Paste, so let this happen.
+      return;
+    }
     if (target === Terminal.focus.element
         || target === Terminal.focus.context
         || target === Terminal.focus.document
@@ -2774,6 +2779,9 @@ Terminal.prototype.keyDown = function(ev) {
           // Ctrl-V
           if (this.prefixMode && ev.keyCode === 86) {
             this.leavePrefix();
+            // Workaround for Firefox to let it actually fire Paste event
+            var term = Terminal.focus;
+            term.element.contentEditable = 'true';
             return;
           }
           // Ctrl-C
