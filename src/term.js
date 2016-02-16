@@ -587,6 +587,10 @@ Terminal.bindKeys = function(document) {
         || target === Terminal.focus.body
         || target === Terminal._textarea
         || target === Terminal.focus.parent) {
+      // In case user popped up context menu, widget may be stuck in
+      // "contentEditable" state (as a workaround for Firefox braindeadness)
+      // with visual artifacts like browser's cursur. Disable it now.
+      Terminal.focus.element.contentEditable = 'inherit';
       return Terminal.focus.keyPress(ev);
     }
   }, true);
@@ -764,6 +768,7 @@ Terminal.prototype.open = function(parent) {
     this.isAndroid = !!~this.context.navigator.userAgent.indexOf('Android');
     this.isMobile = this.isIpad || this.isIphone || this.isAndroid;
     this.isMSIE = !!~this.context.navigator.userAgent.indexOf('MSIE');
+    this.isFirefox = !!~this.context.navigator.userAgent.indexOf('Firefox');
   }
 
   // Create our main terminal element.
@@ -834,12 +839,32 @@ Terminal.prototype.open = function(parent) {
         button = button === 1 ? 0 : button === 4 ? 1 : button;
       }
 
-      if (button !== 2) return;
+      // We care about middle mouse button (paste) and right button (context menu with paste)
+      if (button !== 1 && button !== 2) {
+        // In case user popped up context menu, widget may be stuck in
+        // "contentEditable" state (as a workaround for Firefox braindeadness)
+        // with visual artifacts like browser's cursur. Disable it now.
+        self.element.contentEditable = 'inherit';
+        return;
+      }
 
+      // Required for various browsers to actually show "Paste" in context menu
       self.element.contentEditable = 'true';
-      setTimeout(function() {
-        self.element.contentEditable = 'inherit'; // 'false';
-      }, 1);
+
+      if (self.isFirefox) {
+        // At least try to place caret (which is shown for contentEditable)
+        // to a known position.
+        window.getSelection().collapse(self.element, 0);
+      }
+      // Can't use this trick - with Firefox user may have opened context menu
+      // and may hang in there as much as they want. Then they may select
+      // Paste, and element still have to be contentEditable for it to go thru
+      // with Firefox.
+      if (!self.isFirefox) {
+        setTimeout(function() {
+          self.element.contentEditable = 'inherit'; // 'false';
+        }, 1);
+      }
     }, true);
   }
 
